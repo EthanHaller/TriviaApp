@@ -1,12 +1,9 @@
 import './App.css';
 import React, { useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
-//API URL: https://opentdb.com/api.php?amount=20
+import {decode} from 'html-entities';
 
-const entities = require("entities");
-const NUM_QUESTIONS = 3;
-
-function Game() {
+function Game( {apiLink, numberOfQuestions} ) {
   const [score, setScore] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [questionsData, setQuestionsData] = useState(null)
@@ -15,7 +12,8 @@ function Game() {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const response = await fetch(("https://opentdb.com/api.php?amount=" + NUM_QUESTIONS));
+        console.log(apiLink)
+        const response = await fetch((apiLink));
         const data = await response.json();
         setQuestionsData(data.results);
       }
@@ -24,8 +22,7 @@ function Game() {
       }
     }
     fetchQuestions();
-  }, []);
-
+  }, [apiLink])
 
   if(!questionsData) return;
   let currentQuestionData = questionsData[currentQuestion - 1];
@@ -45,48 +42,51 @@ function Game() {
     setCurrentQuestion(currentQuestion + 1);
   }
 
-  if(currentQuestion > NUM_QUESTIONS) {
+  if(currentQuestion > numberOfQuestions) {
     return (
       <React.Fragment>
-        <h2>Game Over!</h2>
-        <p>You final score was {score}/{NUM_QUESTIONS}</p>
-        <Button href="./">Play Again?</Button>
+        <h2 className='header'>Game Over!</h2>
+        <p id={"score"}>Your final score was {score}/{numberOfQuestions}</p>
+        <Button id={"play_again"} variant='contained' href="./">Play Again?</Button>
       </React.Fragment>
     )
   }
   else {
     return (
       <React.Fragment>
-        <Question question={(currentQuestion) + ". " + currentQuestionData.question} correct_answer={currentQuestionData.correct_answer} incorrect_answers={currentQuestionData.incorrect_answers} onAnswerClick={(answer) => handleAnswerClick(answer)}></Question>
+        <Question question={(currentQuestion) + ". " + currentQuestionData.question} correct_answer={currentQuestionData.correct_answer} incorrect_answers={currentQuestionData.incorrect_answers} onAnswerClick={(answer) => handleAnswerClick(answer)} isAnswerShown={correctAnswerShown}></Question>
         <NextButton text={"NEXT"} isVisible={correctAnswerShown} onNextClick={handleNextClick}></NextButton>
       </React.Fragment>
     );
   }
 }
 
-function Question({ question, correct_answer, incorrect_answers, onAnswerClick }) {
+function Question({ question, correct_answer, incorrect_answers, onAnswerClick, isAnswerShown }) {
   return (
     <React.Fragment>
-      <h3 className="Question">{entities.decode(question)}</h3>
-      <div>
-        <Answers correct_answer={correct_answer} incorrect_answers={incorrect_answers} onAnswerClick={onAnswerClick}></Answers>
-      </div>
+      <h3 className="Question">{decode(question)}</h3>
+      <Answers correct_answer={correct_answer} incorrect_answers={incorrect_answers} onAnswerClick={onAnswerClick} isAnswerShown={isAnswerShown}></Answers>
     </React.Fragment>
   );
 }
 
-function Answers({correct_answer, incorrect_answers, onAnswerClick}) {
-    const [rand, setRand] = useState(null)
-    if(!rand) setRand(Math.random());
+function Answers({correct_answer, incorrect_answers, onAnswerClick, isAnswerShown}) {
+    const [randOrder, setRandOrder] = useState([]);
 
     const answers = [];
     answers.push(correct_answer);
     answers.push(...incorrect_answers);
 
-    const shuffledAnswers = answers.sort((a, b) => 0.5 -rand);
+    if(!randOrder.includes(correct_answer)) {
+      const shuffledAnswers = answers.sort((a, b) => 0.5 - Math.random());
+      setRandOrder(shuffledAnswers);
+    }
+    if(!randOrder.includes(correct_answer)) return;
 
-    const items = shuffledAnswers.map(answer => {
-        return <Button key={answer} variant='contained' onClick={() => onAnswerClick(answer)}>{entities.decode(answer)}</Button>
+    const items = randOrder.map(answer => {
+        if(answer === correct_answer && isAnswerShown) return <Button key={answer} id={"correct_answer"} variant='contained' onClick={() => onAnswerClick(answer)}>{decode(answer)}</Button>
+        else if (isAnswerShown) return <Button key={answer} id={"incorrect_answer"} variant='contained' onClick={() => onAnswerClick(answer)}>{decode(answer)}</Button>
+        else return <Button key={answer} id={"answer_choice"} variant='contained' onClick={() => onAnswerClick(answer)}>{decode(answer)}</Button>
     });
 
     return <div className="answer_choices">
@@ -97,7 +97,7 @@ function Answers({correct_answer, incorrect_answers, onAnswerClick}) {
 function NextButton({ text, isVisible, onNextClick }) {
   if(!isVisible) return;
   else {
-    return <Button variant='contained' onClick={() => onNextClick()}>{text}</Button>
+    return <Button id={"next_button"} variant='contained' onClick={() => onNextClick()}>{text}</Button>
   }
 }
 
